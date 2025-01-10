@@ -12,6 +12,7 @@ public partial class MainForm : Form
     private void MainForm_Load(object sender, EventArgs e)
     {
         CbxGameRegion.SelectedIndex = 0;
+        LabelVersionInfo.Text = "版本:v." + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString();
     }
     #endregion
 

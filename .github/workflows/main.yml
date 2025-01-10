@@ -1,0 +1,74 @@
+name: .NET Build and Release
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Install GitHub CLI
+        run: |
+          curl -fsSL https://cli.github.com/packages/install.sh | bash
+    
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up .NET 8
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        run: dotnet build --configuration Release
+
+      - name: Publish project
+        run: |
+          dotnet publish --configuration Release --output ./publish -p:PublishProfile=Properties/PublishProfiles/FolderProfile.pubxml
+
+      - name: Get version from csproj
+        id: version
+        run: |
+          $csprojPath = "./cnow-cleaner/cnow-cleaner.csproj"
+          if (Test-Path $csprojPath) {
+              $version = (Select-String -Path $csprojPath -Pattern '<Version>(.*?)</Version>' | ForEach-Object { $_.Matches.Groups[1].Value }).Trim()
+              Write-Host "VERSION=$version"
+              echo "VERSION=$version" >> $env:GITHUB_ENV
+          } else {
+              Write-Error "The csproj file was not found at the expected location: $csprojPath"
+          }
+
+      - name: Package build files into zip
+        run: |
+          Compress-Archive -Path ./publish/* -DestinationPath ./cnow-cleaner.zip
+
+      - name: Check if release already exists
+        id: release_check
+        run: |
+          $version = "v${{ env.VERSION }}"
+          $releases = gh release list --json tagName --limit 100 | ConvertFrom-Json
+          $release_exists = $releases | Where-Object { $_.tagName -eq $version }
+          if ($release_exists) {
+            echo "RELEASE_EXISTED=true" >> $env:GITHUB_ENV
+          } else {
+            echo "RELEASE_EXISTED=false" >> $env:GITHUB_ENV
+          }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or update GitHub release
+        run: |
+          if ("${{ env.RELEASE_EXISTED }}" -eq "true") {
+            Write-Host "Release already exists. Uploading new assets..."
+            gh release upload "v${{ env.VERSION }}" ./cnow-cleaner.zip --clobber
+          } else {
+            Write-Host "Creating new release..."
+            gh release create "v${{ env.VERSION }}" ./cnow-cleaner.zip --title "Release v${{ env.VERSION }}" --notes "Automated release"
+          }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

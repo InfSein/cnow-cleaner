@@ -12,7 +12,7 @@ public partial class MainForm : Form
     private void MainForm_Load(object sender, EventArgs e)
     {
         CbxGameRegion.SelectedIndex = 0;
-        LabelVersionInfo.Text = "版本:v." + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString();
+        LabelVersionInfo.Text = "版本: " + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString();
     }
     #endregion
 
@@ -72,7 +72,7 @@ public partial class MainForm : Form
     private string CleanTempFiles()
     {
         var filePath = @"C:\Windows\System32\drivers\OWNeacSafe.sys";
-        var result = CommonTool.DeleteFile(filePath);
+        var result = CommonTool.DeleteFileWithPermissions(filePath);
         return result;
     }
     #endregion

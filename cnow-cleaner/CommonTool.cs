@@ -98,6 +98,55 @@ internal class CommonTool
             return $"删除'{filePath}'失败: {msg}";
         }
     }
+    public static string DeleteFileWithPermissions(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+                return $"删除'{filePath}'成功(文件已被删除)。";
+
+            // 获取文件所有权
+            string takeOwnCommand = $"takeown /f \"{filePath}\" /a";
+            ExecuteCommandAsAdmin(takeOwnCommand);
+
+            // 赋予文件完全控制权限
+            string icaclsCommand = $"icacls \"{filePath}\" /grant administrators:F";
+            ExecuteCommandAsAdmin(icaclsCommand);
+
+            // 删除文件
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+                return $"删除'{filePath}'成功。";
+            }
+            else
+            {
+                return $"删除'{filePath}'期间出现意外:文件在获取授权期间丢失。";
+            }
+        }
+        catch (Exception ex)
+        {
+            var msg = ex.Message;
+            if (msg.Contains("is denied"))
+                msg = "访问被拒绝，请使用管理员权限打开本程序";
+            return $"删除'{filePath}'失败: {msg}";
+        }
+
+        static void ExecuteCommandAsAdmin(string command)
+        {
+            var processStartInfo = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c {command}",
+                Verb = "runas", // 使用管理员权限执行命令
+                WindowStyle = ProcessWindowStyle.Hidden,
+                CreateNoWindow = true
+            };
+
+            using var process = Process.Start(processStartInfo);
+            process?.WaitForExit();
+        }
+    }
     #endregion
 
     #region Other
